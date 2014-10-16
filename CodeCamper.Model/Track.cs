@@ -1,4 +1,4 @@
-﻿namespace CCCodeCamperModel
+﻿namespace CodeCamper.Model
 {
     public class Track
     {
