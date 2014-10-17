@@ -10,7 +10,7 @@
                         <div class="padd"
                              data-ng-repeat="session in vm.sessions">
                             <div class="user">
-                                <img src="{{session.speaker.imageSource}}"
+                                <img data-ng-source="{{session.speaker.imageSource}}"
                                      class="img-polaroid user-pic"
                                      alt="{{session.speaker.firstName}}" />
                                 <div class="user-details">

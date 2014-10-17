@@ -1,9 +1,9 @@
 ﻿(function () {
     'use strict';
     var controllerId = 'sessions';
-    angular.module('app').controller(controllerId, ['common', sessions]);
+    angular.module('app').controller(controllerId, ['common', 'datacontext', sessions]);
 
-    function dashboard(common, datacontext) {
+    function sessions(common, datacontext) {
         var getLogFn = common.logger.getLogFn;
         var log = getLogFn(controllerId);
 
@@ -22,7 +22,9 @@
         }
 
         function getSessions() {
-           
+            return datacontext.getSessionPartials().then(function (data) {
+                return vm.sessions = data;
+            });
         }
     }
 })();

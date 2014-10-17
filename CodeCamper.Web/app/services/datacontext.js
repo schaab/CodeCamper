@@ -2,14 +2,21 @@
     'use strict';
 
     var serviceId = 'datacontext';
-    angular.module('app').factory(serviceId, ['common', datacontext]);
+    angular.module('app').factory(serviceId, ['common', 'entityManagerFactory', datacontext]);
 
-    function datacontext(common) {
+    function datacontext(common, emFactory) {
+        var EntityQuery = breeze.EntityQuery;
+        var getLogFn = common.logger.getLogFn;
+        var log = getLogFn(serviceId);
+        var logError = getLogFn(serviceId, 'error');
+        var logSuccess = getLogFn(serviceId, 'success');
+        var manager = emFactory.newManager();
         var $q = common.$q;
 
         var service = {
             getPeople: getPeople,
-            getMessageCount: getMessageCount
+            getMessageCount: getMessageCount,
+            getSessionPartials: getSessionPartials
         };
 
         return service;
@@ -27,6 +34,34 @@
                 { firstName: 'Haley', lastName: 'Guthrie', age: 35, location: 'Wyoming' }
             ];
             return $q.when(people);
+        }
+
+        function getSessionPartials() {
+            var ordeBy = 'timeSlotId, level, speaker.firstName';
+            var sessions;
+
+            return EntityQuery.from('Sessions')
+                              .select('id, title, code, speakerId, trackId, timeSoltId, roomId, level, tags')
+                              .ordeBy(orderBy)
+                              .toType('Session')
+                              .using(manager)
+                              .execute()
+                              .then(querySucceeded, _queryFailed);
+
+            function querySucceeded(data) {
+                sessions = data.results;
+                log('Retrieved [Session Partials] from remote data source', sessions.length);
+                return sessions;
+            }
+        }
+
+        
+
+        function _queryFailed(error) {
+            var msg = config.appErrorPrefix + 'Error retrieving data: ' + error.message;
+            logError(msg, error);
+
+            throw error;
         }
     }
 })();
