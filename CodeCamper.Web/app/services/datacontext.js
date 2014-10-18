@@ -11,12 +11,25 @@
         var logError = getLogFn(serviceId, 'error');
         var logSuccess = getLogFn(serviceId, 'success');
         var manager = emFactory.newManager();
+        var primePromise;
         var $q = common.$q;
+
+        var entityNames = {
+            attendee: 'Person',
+            person: 'Person',
+            speaker: 'Person',
+            session: 'Session',
+            room: 'Room',
+            track: 'Track',
+            timeslot: 'TimeSlot'
+        };
 
         var service = {
             getPeople: getPeople,
             getMessageCount: getMessageCount,
-            getSessionPartials: getSessionPartials
+            getSessionPartials: getSessionPartials,
+            getSpeakerPartials: getSpeakerPartials,
+            prime: prime
         };
 
         return service;
@@ -36,13 +49,32 @@
             return $q.when(people);
         }
 
+        function getSpeakerPartials() {
+            var orderBy = 'firstName, lastName';
+            var speakers = [];
+
+            return EntityQuery.from('Speakers')
+                                .select('id, firstName, lastName, imageSource')
+                                .orderBy(orderBy)
+                                .toType('Person')
+                                .using(manager)
+                                .execute()
+                                .then(querySucceeded, _queryFailed);
+
+            function querySucceeded(data) {
+                speakers = data.results;
+                log('Retrieved [Speaker Partials] from remote data source', speakers.length);
+                return speakers;
+            }
+        }
+
         function getSessionPartials() {
-            var ordeBy = 'timeSlotId, level, speaker.firstName';
+            var orderBy = 'timeSlotId, level, speaker.firstName';
             var sessions;
 
             return EntityQuery.from('Sessions')
-                              .select('id, title, code, speakerId, trackId, timeSoltId, roomId, level, tags')
-                              .ordeBy(orderBy)
+                              .select('id, title, code, speakerId, trackId, timeSlotId, roomId, level, tags')
+                              .orderBy(orderBy)
                               .toType('Session')
                               .using(manager)
                               .execute()
@@ -55,6 +87,68 @@
             }
         }
 
+        function prime() {
+            if (primePromise) return primePromise;
+
+            primePromise = $q.all([getLookups(), getSpeakerPartials()])
+                .then(extendMetadata)
+                .then(success);
+
+            return primePromise;
+
+            function success() {
+                setLookups();
+                log('Primed the data');
+            }
+
+            function extendMetadata() {
+                var metadataStore = manager.metadataStore;
+                var types = metadataStore.getEntityTypes();
+
+                types.forEach(function (type) {
+                    if (type instanceof breeze.EntityType) {
+                        set(type.shortName, type);
+                    }
+                });
+
+                var personEntityName = entityNames.person;
+                ['Speakers', 'Speaker', 'Attendees', 'Attendee'].forEach(function (r) {
+                    set(r, personEntityName)
+                });
+
+                function set(resourceName, entityName) {
+                    metadataStore.setEntityTypeForResourceName(resourceName, entityName);
+                }
+            }
+        }
+
+        function setLookups() {
+            service.lookupCachedData = {
+                rooms: _getAllLocalData(entityNames.room, 'name'),
+                tracks: _getAllLocalData(entityNames.track, 'name'),
+                timeslots: _getAllLocalData(entityNames.timeslot, 'start')
+            };
+        }
+
+
+        function _getAllLocalData(resource, ordering) {
+            return EntityQuery.from(resource)
+                                .orderBy(ordering)
+                                .using(manager)
+                                .executeLocally();
+        }
+
+        function getLookups() {
+            return EntityQuery.from('Lookups')
+                                .using(manager)
+                                .execute()
+                                .then(querySucceeded, _queryFailed);
+
+            function querySucceeded(data) {                
+                log('Retrieved [Lookups]', data, true);
+                return true;
+            }
+        }
         
 
         function _queryFailed(error) {

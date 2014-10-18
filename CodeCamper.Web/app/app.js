@@ -17,7 +17,7 @@
     ]);
     
     // Handle routing errors and success events
-    app.run(['$route', '$rootScope', '$q', function ($route, $rootScope, $q) {
-        breeze.core.extend($rootScope, $q);
-        }]);        
+    app.run(['$route', 'datacontext', function ($route, datacontext) {
+        datacontext.prime();
+     }]);        
 })();

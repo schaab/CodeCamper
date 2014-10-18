@@ -13,11 +13,10 @@
         vm.sessions = [];
         vm.title = 'Sessions';
         
-
         activate();
+
         function activate() {
-            
-            common.activateController([getSessions], controllerId)
+            common.activateController([getSessions()], controllerId)
                 .then(function () { log('Activated Sessions View'); });
         }
 
